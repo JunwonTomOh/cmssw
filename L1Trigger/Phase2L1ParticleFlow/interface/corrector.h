@@ -4,7 +4,7 @@
 #include <vector>
 #include <memory>
 
-#ifdef CMSSW_GIT_HASH
+#if defined(CMSSW_GIT_HASH) || defined(__CLING__)
 #define L1PF_USE_ROOT
 #endif
 
