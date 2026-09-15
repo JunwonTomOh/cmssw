@@ -1,4 +1,5 @@
 import argparse
+import os
 import sys
 import math
 
@@ -58,6 +59,7 @@ process.GlobalTag = GlobalTag(process.GlobalTag, '141X_mcRun4_realistic_v3', '')
 process.load('L1Trigger.Phase2L1ParticleFlow.l1ctLayer1_cff')
 process.load('L1Trigger.Phase2L1ParticleFlow.l1ctLayer2EG_cff')
 process.load('L1Trigger.Phase2L1ParticleFlow.l1pfJetMet_cff')
+process.load('L1Trigger.Phase2L1ParticleFlow.l1tMETPFProducer_cfi')
 process.load('L1Trigger.Phase2L1ParticleFlow.mlAssociation_cfi')
 process.load('L1Trigger.L1TTrackMatch.l1tGTTInputProducer_cfi')
 process.load('L1Trigger.L1TTrackMatch.l1tTrackSelectionProducer_cfi')
@@ -219,6 +221,7 @@ process.runPF = cms.Path(
         process.l1tLayer1BarrelExtended +
         process.l1tLayer1HGCalExtended +
         process.l1tLayer2Deregionizer +
+        process.l1tMETPFProducer +
         process.l1tSC4PFL1PuppiEmulator +
         process.l1tSC4PFL1PuppiCorrectedEmulator +
         process.l1tSC4NGJetProducer +
@@ -240,6 +243,13 @@ if not args.patternFilesOFF:
     process.l1tLayer2EG.writeOutPattern = True
     process.l1tLayer2EG.inPatternFile.maxLinesPerFile = _eventsPerFile*54
     process.l1tLayer2EG.outPatternFile.maxLinesPerFile = _eventsPerFile*54
+
+#####################################################################################################################
+## Layer 2 MET
+if not args.patternFilesOFF:
+    process.l1tMETPFProducer.writeOutputPatternFiles = True
+    process.l1tMETPFProducer.outputPatternFilePSet.maxLinesPerFile = _eventsPerFile*54
+    process.l1tMETPFProducer.outputPatternFilePSet.outputFilename = "L1MET-outputs"
 
 #####################################################################################################################
 ## Layer 2 seeded-cone jets
@@ -296,3 +306,6 @@ if not args.patternFilesOFF:
     )
 
 process.source.fileNames  = [ '/store/cmst3/group/l1tr/FastPUPPI/14_2_X/fpinputs_140X/v0/TT_PU200/inputs140X_1.root' ]
+process.source.fileNames = ["file:inputs140X_1.root "]
+
+process.l1tSC4NGJetProducer.l1tSC4NGJetModelPath = cms.string(os.environ["CMSSW_BASE"]+"/src/L1TSC4NGJetModel/L1TSC4NGJetModel_v1_0_1")
