@@ -1,8 +1,8 @@
+#include <vector>
+#include <string>
 #include <cstdint>
 #include <map>
 #include <memory>
-#include <string>
-#include <vector>
 #include <ap_int.h>
 #include <ap_fixed.h>
 #include <TVector2.h>
@@ -66,14 +66,13 @@ private:
   static constexpr int numCatInputs_ = 2;
   static constexpr int numInputs_ = numContInputs_ + numPxPyInputs_ + numCatInputs_;
 
-  void CalcMetHLS(const std::vector<l1t::PFCandidate>& pfcands,
-                  reco::Candidate::PolarLorentzVector& metVector,
-                  l1ct::Sum& hwMet) const;
+  void CalcMetHLS(const std::vector<l1t::PFCandidate>& pfcands, reco::Candidate::PolarLorentzVector& metVector) const;
 
   int EncodePdgId(int pdgId) const;
 
   void CalcMlMet(const std::vector<l1t::PFCandidate>& pfcands, reco::Candidate::PolarLorentzVector& metVector) const;
 
+  void configurePatternFileWrite(const edm::ParameterSet& conf);
   void writePatternFile(const l1ct::Sum& hwMet) const;
 };
 
@@ -92,21 +91,8 @@ L1MetPfProducer::L1MetPfProducer(const edm::ParameterSet& cfg)
     L1METEmu::SetPoly2File(f.fullPath());
   }
 
-  if (writeOutputPatternFiles_) {
-    const auto& pset = cfg.getParameter<edm::ParameterSet>("outputPatternFilePSet");
-    const auto tmux = pset.getParameter<uint32_t>("TMUX");
-    const auto gapLength = pset.getParameter<uint32_t>("gapLengthOutput");
-    const l1t::demo::BoardDataWriter::ChannelMap_t channelMap{{{"met", 0}, {{tmux, gapLength}, {0}}}};
-
-    outputFileWriter_ = std::make_unique<l1t::demo::BoardDataWriter>(
-        l1t::demo::parseFileFormat(pset.getParameter<std::string>("format")),
-        pset.getParameter<std::string>("outputFilename"),
-        pset.getParameter<std::string>("outputFileExtension"),
-        pset.getParameter<uint32_t>("nFramesPerBX"),
-        tmux,
-        pset.getParameter<uint32_t>("maxLinesPerFile"),
-        channelMap);
-  }
+  if (writeOutputPatternFiles_)
+    configurePatternFileWrite(cfg);
 }
 
 void L1MetPfProducer::fillDescriptions(edm::ConfigurationDescriptions& descriptions) {
@@ -137,23 +123,14 @@ void L1MetPfProducer::produce(edm::StreamID, edm::Event& iEvent, const edm::Even
 
   const std::vector<l1t::PFCandidate>& pfcands = *l1PFCandidates;
   reco::Candidate::PolarLorentzVector metVector;
-  l1ct::Sum hwMet;
-  hwMet.clear();
 
   if (useMlModel_) {
     CalcMlMet(pfcands, metVector);
-    hwMet.hwPt = l1ct::Scales::makePtFromFloat(metVector.pt());
-    hwMet.hwPhi = l1ct::Scales::makeGlbPhi(metVector.phi());
   } else {
-    CalcMetHLS(pfcands, metVector, hwMet);
+    CalcMetHLS(pfcands, metVector);
   }
 
-  if (writeOutputPatternFiles_)
-    writePatternFile(hwMet);
-
-  const l1gt::Sum gtMet = hwMet.toGT();
-  l1t::EtSum theMET(
-      metVector, l1t::EtSum::EtSumType::kMissingEt, gtMet.vector_pt.bits_to_uint64(), 0, gtMet.vector_phi, 0);
+  l1t::EtSum theMET(metVector, l1t::EtSum::EtSumType::kMissingEt, 0, 0, 0, 0);
 
   auto metCollection = std::make_unique<std::vector<l1t::EtSum>>(0);
   metCollection->push_back(theMET);
@@ -161,9 +138,9 @@ void L1MetPfProducer::produce(edm::StreamID, edm::Event& iEvent, const edm::Even
 }
 
 void L1MetPfProducer::CalcMetHLS(const std::vector<l1t::PFCandidate>& pfcands,
-                                 reco::Candidate::PolarLorentzVector& metVector,
-                                 l1ct::Sum& hwMet) const {
+                                 reco::Candidate::PolarLorentzVector& metVector) const {
   std::vector<l1ct::PuppiObjEmu> particles;
+  l1ct::Sum hw_met;
 
   for (int i = 0; i < int(pfcands.size()) && (i < maxCands_ || maxCands_ < 0); i++) {
     const auto& cand = pfcands[i];
@@ -172,11 +149,35 @@ void L1MetPfProducer::CalcMetHLS(const std::vector<l1t::PFCandidate>& pfcands,
     particles.push_back(each_particle);
   }
 
-  puppimet_emu(particles, hwMet);
+  puppimet_emu(particles, hw_met);
 
-  metVector.SetPt(hwMet.hwPt.to_double());
-  metVector.SetPhi(hwMet.hwPhi.to_double() * phiLSB_);
+  if (writeOutputPatternFiles_)
+    writePatternFile(hw_met);
+
+  metVector.SetPt(hw_met.hwPt.to_double());
+  metVector.SetPhi(hw_met.hwPhi.to_double() * phiLSB_);
   metVector.SetEta(0);
+}
+
+void L1MetPfProducer::configurePatternFileWrite(const edm::ParameterSet& conf) {
+  const auto& pset = conf.getParameter<edm::ParameterSet>("outputPatternFilePSet");
+  const auto tmux = pset.getParameter<uint32_t>("TMUX");
+  const auto gapLength = pset.getParameter<uint32_t>("gapLengthOutput");
+
+  std::map<l1t::demo::LinkId, std::vector<size_t>> channelIdsOutput;
+  std::map<std::string, l1t::demo::ChannelSpec> channelSpecsOutput;
+  channelIdsOutput[{"met", 0}] = {0};
+  channelSpecsOutput["met"] = {tmux, gapLength, 0};
+
+  outputFileWriter_ = std::make_unique<l1t::demo::BoardDataWriter>(
+      l1t::demo::parseFileFormat(pset.getParameter<std::string>("format")),
+      pset.getParameter<std::string>("outputFilename"),
+      pset.getParameter<std::string>("outputFileExtension"),
+      pset.getParameter<uint32_t>("nFramesPerBX"),
+      tmux,
+      pset.getParameter<uint32_t>("maxLinesPerFile"),
+      channelIdsOutput,
+      channelSpecsOutput);
 }
 
 void L1MetPfProducer::writePatternFile(const l1ct::Sum& hwMet) const {
