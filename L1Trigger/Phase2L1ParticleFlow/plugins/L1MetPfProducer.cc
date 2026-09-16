@@ -169,15 +169,15 @@ void L1MetPfProducer::configurePatternFileWrite(const edm::ParameterSet& conf) {
   channelIdsOutput[{"met", 0}] = {0};
   channelSpecsOutput["met"] = {tmux, gapLength, 0};
 
-  outputFileWriter_ = std::make_unique<l1t::demo::BoardDataWriter>(
-      l1t::demo::parseFileFormat(pset.getParameter<std::string>("format")),
-      pset.getParameter<std::string>("outputFilename"),
-      pset.getParameter<std::string>("outputFileExtension"),
-      pset.getParameter<uint32_t>("nFramesPerBX"),
-      tmux,
-      pset.getParameter<uint32_t>("maxLinesPerFile"),
-      channelIdsOutput,
-      channelSpecsOutput);
+  outputFileWriter_ =
+      std::make_unique<l1t::demo::BoardDataWriter>(l1t::demo::parseFileFormat(pset.getParameter<std::string>("format")),
+                                                   pset.getParameter<std::string>("outputFilename"),
+                                                   pset.getParameter<std::string>("outputFileExtension"),
+                                                   pset.getParameter<uint32_t>("nFramesPerBX"),
+                                                   tmux,
+                                                   pset.getParameter<uint32_t>("maxLinesPerFile"),
+                                                   channelIdsOutput,
+                                                   channelSpecsOutput);
 }
 
 void L1MetPfProducer::writePatternFile(const l1ct::Sum& hwMet) const {

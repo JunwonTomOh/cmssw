@@ -309,3 +309,6 @@ process.source.fileNames  = [ '/store/cmst3/group/l1tr/FastPUPPI/14_2_X/fpinputs
 process.source.fileNames = ["file:inputs140X_1.root "]
 
 process.l1tSC4NGJetProducer.l1tSC4NGJetModelPath = cms.string(os.environ["CMSSW_BASE"]+"/src/L1TSC4NGJetModel/L1TSC4NGJetModel_v1_0_1")
+process.source.fileNames = ["file:inputs140X_1.root "]
+
+process.l1tSC4NGJetProducer.l1tSC4NGJetModelPath = cms.string(os.environ["CMSSW_BASE"]+"/src/L1TSC4NGJetModel/L1TSC4NGJetModel_v1_0_1")
